@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskMaster API Consumo</title>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        /* Formulário de Adição */
+        #add-task-form {
+            display: flex;
+            flex-direction: column; /* Coloca os inputs um abaixo do outro */
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        #add-task-form input[type="text"] {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #add-task-form button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #add-task-form button:hover {
+            background-color: #0056b3;
+        }
+        /* Lista de Tarefas */
+        #tasks-list {
+            list-style: none;
+            padding: 0;
+        }
+        #tasks-list li {
+            background: #eee;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column; /* Mostra info em cima e botões embaixo */
+            gap: 5px;
+            border-left: 5px solid #007bff;
+        }
+        .task-info {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .task-details {
+            font-size: 0.9em;
+            color: #555;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            align-self: flex-end; /* Alinha o botão à direita */
+            width: 80px;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TaskMaster - Consumo API</h1>
+        
+        <h2>Adicionar Nova Tarefa</h2>
+        <form id="add-task-form">
+            <input type="text" id="task-title" placeholder="Título da Tarefa" required>
+            <input type="text" id="task-description" placeholder="Descrição Detalhada" required>
+            <input type="text" id="task-type" placeholder="Tipo ou Categoria (Ex: Pessoal, Trabalho)" required>
+            <button type="submit">Adicionar</button>
+        </form>
+
+        <h2>Minhas Tarefas</h2>
+        <ul id="tasks-list">
+            </ul>
+    </div>
+
+    <script>
+        // ==========================================================
+        // CONFIGURAÇÃO E VARIÁVEIS
+        // ==========================================================
+        // ATENÇÃO: Verifique se este endpoint corresponde ao seu Controller no Spring Boot
+        const API_URL = 'http://localhost:8080/tarefas'; 
+        
+        const tasksList = document.getElementById('tasks-list');
+        const form = document.getElementById('add-task-form');
+        
+        // Inputs do formulário
+        const titleInput = document.getElementById('task-title');
+        const taskInput = document.getElementById('task-description');
+        const typeInput = document.getElementById('task-type'); 
+
+        // ==========================================================
+        // FUNÇÃO 1: BUSCAR E EXIBIR TAREFAS (GET)
+        // ==========================================================
+        async function fetchTasks() {
+            try {
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP! Status: ${response.status}`);
+                }
+                const tasks = await response.json(); 
+                
+                tasksList.innerHTML = ''; // Limpa a lista
+                
+                tasks.forEach(task => {
+                    const listItem = document.createElement('li');
+                    
+                    // Ajuste os nomes das chaves (title, descricao, tipo) conforme sua Entidade Task
+                    const title = task.nomeDaTarefa || 'Sem Título';
+                    const description = task.descricaoDaTarefa || task.description || 'Sem descrição';
+                    const type = task.tipoDaTarefa || 'Sem Tipo';
+
+                    listItem.innerHTML = `
+                        <div class="task-info">
+                            <span>${title}</span>
+                            <span>ID: ${task.id}</span>
+                        </div>
+                        <div class="task-details">
+                            Descrição: ${description} | Tipo: ${type}
+                        </div>
+                        <button class="delete-btn" onclick="deleteTask(${task.id})">Excluir</button>
+                    `;
+                    tasksList.appendChild(listItem);
+                });
+
+            } catch (error) {
+                console.error("Erro ao buscar tarefas:", error);
+                tasksList.innerHTML = `<li>Erro ao carregar dados. Verifique o console e a porta ${API_URL}</li>`;
+            }
+        }
+
+        // ==========================================================
+        // FUNÇÃO 2: ADICIONAR NOVA TAREFA (POST)
+        // ==========================================================
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault(); 
+
+            const title = titleInput.value.trim();
+            const description = taskInput.value.trim();
+            const type = typeInput.value.trim();
+
+            if (!title || !description || !type) {
+                alert("Todos os campos devem ser preenchidos.");
+                return;
+            }
+
+            // O OBJETO JSON ENVIADO PARA O SPRING
+            const newTask = {
+                nomeDaTarefa: title, 
+                descricaoDaTarefa: description, 
+                tipoDaTarefa: type 
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newTask) 
+                });
+
+                if (response.ok) {
+                    titleInput.value = ''; 
+                    taskInput.value = '';  
+                    typeInput.value = '';  
+                    await fetchTasks(); // Recarrega a lista
+                } else {
+                    alert('Falha ao adicionar tarefa. Status: ' + response.status + '. Veja o console.');
+                }
+            } catch (error) {
+                console.error("Erro ao adicionar tarefa:", error);
+                alert("Erro de comunicação com a API.");
+            }
+        });
+
+        // ==========================================================
+        // FUNÇÃO 3: EXCLUIR TAREFA (DELETE)
+        // ==========================================================
+        async function deleteTask(taskId) {
+            if (!confirm(`Tem certeza que deseja excluir a tarefa ID ${taskId}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/${taskId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.status === 204 || response.ok) { // 204 No Content é comum para DELETE
+                    await fetchTasks(); // Recarrega a lista
+                } else {
+                    alert('Falha ao excluir tarefa. Verifique se o ID existe.');
+                }
+            } catch (error) {
+                console.error("Erro ao excluir tarefa:", error);
+                alert("Erro de comunicação com a API.");
+            }
+        }
+
+        // ==========================================================
+        // INICIALIZAÇÃO
+        // ==========================================================
+        window.onload = fetchTasks;
+    </script>
+</body>
+</html>
